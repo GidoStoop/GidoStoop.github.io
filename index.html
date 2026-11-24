@@ -1,0 +1,1836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Visualization for Science — Cartesian Slide Deck</title>
+    
+    <!-- Google Fonts: Playfair Display (Serif 400) & Inter (Sans 400/500/600) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ==========================================================================
+           CARTESIAN DESIGN SYSTEM — CSS VARIABLES & DEFAULTS
+           Quiet Museum-Catalog Editorial System & Drafting-Paper Aesthetics
+           ========================================================================== */
+        :root {
+            /* Palette: Warm Stone Canvas + Technical Ink */
+            --bg-primary: #EDE8E0;       /* Sandstone off-cream canvas */
+            --bg-secondary: #E2DBD1;     /* Deeper warm stone */
+            --text-primary: #1A1A1A;     /* Near-black ink */
+            --text-secondary: #333333;   /* High-readability deep slate */
+            --accent: #7D746B;           /* Architectural taupe */
+            --line: #B8B0A4;             /* Universal 1px pale taupe hairline */
+            --white-overlay: rgba(255, 255, 255, 0.6);
+            
+            /* Typography */
+            --font-display: 'Playfair Display', Georgia, serif;
+            --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            
+            /* Stage Dimensions (Base 16:9 canvas) */
+            --stage-width: 1920px;
+            --stage-height: 1080px;
+            --slide-pad-x: 120px;
+            --slide-pad-y: 80px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* 1. Viewport Lock: Full-bleed viewport on any monitor or laptop */
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #12100E;
+            font-family: var(--font-body);
+            color: var(--text-primary);
+            user-select: none;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* 2. Full-Window Deck Viewport */
+        .deck-viewport {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: #12100E;
+        }
+
+        /* 3. Fixed 16:9 Stage (1920x1080)
+           Centered with left: 50%; top: 50%; and translate(-50%, -50%).
+           This ensures 100% perfect centering on laptop screens, large monitors,
+           and projectors without any top-left clipping or drift. */
+        .deck-stage {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: var(--stage-width);
+            height: var(--stage-height);
+            background: var(--bg-primary);
+            overflow: hidden;
+            transform-origin: center center;
+            transform: translate(-50%, -50%) scale(min(calc(100vw / 1920), calc(100vh / 1080)));
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.55);
+            will-change: transform;
+        }
+
+        /* 4. Slides Stack */
+        .slide {
+            position: absolute;
+            inset: 0;
+            width: var(--stage-width);
+            height: var(--stage-height);
+            padding: var(--slide-pad-y) var(--slide-pad-x);
+            background: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.35s ease, visibility 0.35s;
+            overflow: hidden;
+        }
+
+        .slide.active {
+            visibility: visible;
+            opacity: 1;
+            pointer-events: auto;
+            z-index: 10;
+        }
+
+        /* Geometric Drafting Layer */
+        .geo-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .geo-circle-corner {
+            position: absolute;
+            top: -120px;
+            right: -120px;
+            width: 560px;
+            height: 560px;
+            border: 1px solid var(--line);
+            border-radius: 50%;
+            opacity: 0.35;
+        }
+        
+        .geo-circle-corner::before {
+            content: '';
+            position: absolute;
+            inset: 60px;
+            border: 1px dashed var(--line);
+            border-radius: 50%;
+            opacity: 0.4;
+        }
+
+        .geo-circle-corner::after {
+            content: '';
+            position: absolute;
+            inset: 150px;
+            border: 1px solid var(--line);
+            border-radius: 50%;
+            opacity: 0.25;
+        }
+
+        .vertical-drafting-line {
+            position: absolute;
+            left: 75px;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: var(--line);
+            opacity: 0.25;
+        }
+
+        .horizontal-accent-rule {
+            width: 100px;
+            height: 1px;
+            background: var(--text-primary);
+            margin: 28px 0 32px 0;
+        }
+
+        /* ==========================================================================
+           SLIDE CONTENT & TYPOGRAPHY
+           ========================================================================== */
+        .slide-content {
+            position: relative;
+            z-index: 2;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .slide-title {
+            font-family: var(--font-display);
+            font-size: 62px;
+            font-weight: 400;
+            line-height: 1.15;
+            color: var(--text-primary);
+            letter-spacing: -0.5px;
+            margin-bottom: 24px;
+        }
+
+        /* Bullet List (Enhanced with » Chevron Icons) */
+        .bullet-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+            margin-top: 10px;
+        }
+
+        .bullet-list li {
+            position: relative;
+            font-size: 32px;
+            line-height: 1.5;
+            color: var(--text-secondary);
+        }
+
+        .bullet-list li.level-0 {
+            padding-left: 44px;
+        }
+
+        .bullet-list li.level-0::before {
+            content: '»';
+            position: absolute;
+            left: 0;
+            top: -3px;
+            font-family: var(--font-body);
+            font-size: 32px;
+            font-weight: 600;
+            color: var(--accent);
+            line-height: 1.5;
+        }
+
+        .bullet-list li.level-1 {
+            padding-left: 82px;
+            font-size: 26px;
+            color: #4D4D4D;
+        }
+
+        .bullet-list li.level-1::before {
+            content: '»';
+            position: absolute;
+            left: 46px;
+            top: -2px;
+            font-family: var(--font-body);
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--accent);
+            opacity: 0.85;
+            line-height: 1.5;
+        }
+
+        .bullet-list li.level-2 {
+            padding-left: 112px;
+            font-size: 22px;
+            color: #666666;
+        }
+
+        .bullet-list li.level-2::before {
+            content: '›';
+            position: absolute;
+            left: 82px;
+            top: -1px;
+            font-family: var(--font-body);
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--line);
+            line-height: 1.5;
+        }
+
+        /* Frame Containers */
+        .media-frame {
+            border: 1px solid var(--line);
+            background: var(--bg-secondary);
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .media-frame img {
+            max-width: 100%;
+            height: auto;
+            object-fit: contain;
+            display: block;
+        }
+
+        /* ==========================================================================
+           SPECIFIC ENLARGED LAYOUTS
+           ========================================================================== */
+
+        /* 1. Hero Title Large (Slide 1) */
+        .hero-title-grid-large {
+            display: grid;
+            grid-template-columns: 0.85fr 1.15fr;
+            gap: 60px;
+            height: 100%;
+            align-items: center;
+        }
+
+        .hero-title-left {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .hero-title-left .slide-title {
+            font-size: 86px;
+            line-height: 1.05;
+            margin-bottom: 20px;
+        }
+
+        .hero-meta-list {
+            margin-top: 36px;
+            display: flex;
+            gap: 40px;
+            border-top: 1px solid var(--line);
+            padding-top: 24px;
+        }
+
+        .hero-meta-item {
+            font-size: 24px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .hero-title-right-large {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .hero-title-right-large .media-frame {
+            width: 100%;
+            height: 740px;
+            max-height: 740px;
+            padding: 16px;
+        }
+
+        .hero-title-right-large img {
+            max-height: 708px;
+            max-width: 100%;
+        }
+
+        /* Standard Split Grid */
+        .split-grid {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 60px;
+            height: calc(100% - 100px);
+            align-items: center;
+        }
+
+        .split-text-col {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .split-media-col {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        /* Enlarged Single Image Split (Slide 9, Slide 26) */
+        .split-grid-large-img {
+            display: grid;
+            grid-template-columns: 0.85fr 1.15fr;
+            gap: 60px;
+            height: calc(100% - 100px);
+            align-items: center;
+        }
+
+        .split-grid-large-img .media-frame {
+            width: 100%;
+            height: 740px;
+            max-height: 740px;
+            padding: 14px;
+        }
+
+        .split-grid-large-img .media-frame img {
+            max-height: 712px;
+            max-width: 100%;
+        }
+
+        /* Enlarged Stacked Dual Image Split (Slide 8) */
+        .split-grid-dual-large {
+            display: grid;
+            grid-template-columns: 0.72fr 1.28fr;
+            gap: 50px;
+            height: calc(100% - 100px);
+            align-items: center;
+        }
+
+        .dual-media-col-large {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            justify-content: center;
+            height: 100%;
+            width: 100%;
+        }
+
+        .dual-media-col-large .frame-top {
+            height: 480px;
+            max-height: 480px;
+            padding: 12px;
+        }
+
+        .dual-media-col-large .frame-top img {
+            max-height: 456px;
+        }
+
+        .dual-media-col-large .frame-bottom {
+            height: 240px;
+            max-height: 240px;
+            padding: 10px;
+        }
+
+        .dual-media-col-large .frame-bottom img {
+            max-height: 220px;
+        }
+
+        /* Side-by-Side Portrait Split (Slide 15 - Oil barrels) */
+        .split-grid-side-by-side {
+            display: grid;
+            grid-template-columns: 0.75fr 1.25fr;
+            gap: 50px;
+            height: calc(100% - 100px);
+            align-items: center;
+        }
+
+        .side-by-side-cards-wrap {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            height: 100%;
+            align-items: center;
+            width: 100%;
+        }
+
+        .side-by-side-cards-wrap .media-frame {
+            height: 720px;
+            max-height: 720px;
+            padding: 14px;
+        }
+
+        .side-by-side-cards-wrap .media-frame img {
+            max-height: 692px;
+        }
+
+        /* Text-Top with Huge Dual Media Grid Below (Slide 12, Slide 22) */
+        .dual-images-top-text-wrap {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .top-bullets-summary {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .top-bullets-summary .bullet-list {
+            margin-top: 0;
+            gap: 10px;
+        }
+
+        .top-bullets-summary .bullet-list li {
+            font-size: 26px;
+            line-height: 1.4;
+        }
+
+        .dual-media-grid-huge {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 36px;
+            flex: 1;
+            align-items: center;
+            max-height: 720px;
+        }
+
+        .dual-media-grid-huge .media-frame {
+            height: 100%;
+            max-height: 700px;
+            padding: 14px;
+        }
+
+        .dual-media-grid-huge .media-frame img {
+            max-height: 672px;
+            max-width: 100%;
+        }
+
+        /* Hero Chart Single (Slide 14 - BBB / Nitrogen) */
+        .hero-chart-layout-wrap {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .hero-chart-quote {
+            font-size: 26px;
+            line-height: 1.5;
+            color: var(--text-secondary);
+            background: var(--white-overlay);
+            border-left: 3px solid var(--accent);
+            padding: 14px 24px;
+            margin-bottom: 24px;
+            font-style: italic;
+        }
+
+        .hero-chart-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            max-height: 700px;
+        }
+
+        .hero-chart-container .media-frame {
+            width: 100%;
+            height: 100%;
+            max-height: 700px;
+            padding: 16px;
+        }
+
+        .hero-chart-container .media-frame img {
+            max-height: 668px;
+            max-width: 100%;
+        }
+
+        /* Swapped Legend Layout (Slide 19) */
+        .legend-swapped-wrap {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .horizontal-pills-strip {
+            display: flex;
+            align-items: center;
+            gap: 36px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .horizontal-pill-item {
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .horizontal-pill-item::before {
+            content: '»';
+            color: var(--accent);
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        /* Data-Ink Spaced Enlarged (Slide 18) */
+        .split-grid-dataink-large {
+            display: grid;
+            grid-template-columns: 0.88fr 1.12fr;
+            gap: 50px;
+            height: calc(100% - 100px);
+            align-items: center;
+        }
+
+        .spaced-divider {
+            height: 1px;
+            background: var(--line);
+            margin: 28px 0;
+            width: 85%;
+            opacity: 0.6;
+        }
+
+        .dataink-media-col {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            justify-content: center;
+            height: 100%;
+            width: 100%;
+        }
+
+        .dataink-media-col .media-frame {
+            height: 350px;
+            max-height: 350px;
+            padding: 12px;
+        }
+
+        .dataink-media-col .media-frame img {
+            max-height: 326px;
+        }
+
+        /* Dual Media Grid (Slides 13, 25) */
+        .dual-media-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            height: calc(100% - 110px);
+            align-items: center;
+        }
+
+        .dual-media-grid.full-height {
+            height: 100%;
+        }
+
+        .dual-media-card {
+            border: 1px solid var(--line);
+            background: var(--bg-secondary);
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            max-height: 660px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .dual-media-grid.full-height .dual-media-card {
+            max-height: 880px;
+        }
+
+        .dual-media-card img {
+            max-height: 636px;
+            max-width: 100%;
+            object-fit: contain;
+        }
+
+        .dual-media-grid.full-height .dual-media-card img {
+            max-height: 856px;
+        }
+
+        /* Full Image (Slides 5, 6) */
+        .full-image-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            width: 100%;
+        }
+
+        .full-image-container .media-frame {
+            max-height: 900px;
+            width: 100%;
+        }
+
+        .full-image-container img {
+            max-height: 876px;
+        }
+
+        /* Wide Image Top Text (Slides 11, 21, 28) */
+        .wide-media-container {
+            margin-top: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: calc(100% - 130px);
+        }
+
+        .wide-media-container .media-frame {
+            width: 100%;
+            max-height: 740px;
+            height: 100%;
+        }
+
+        .wide-media-container img {
+            max-height: 716px;
+        }
+
+        /* 6 Rules 6 Boxes Grid (Slide 16) */
+        .six-boxes-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 28px;
+            height: calc(100% - 110px);
+            margin-top: 10px;
+        }
+
+        .rule-box {
+            border: 1px solid var(--line);
+            background: var(--white-overlay);
+            padding: 28px 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+        }
+
+        .rule-numeral {
+            font-family: var(--font-display);
+            font-size: 26px;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        .rule-heading {
+            font-family: var(--font-display);
+            font-size: 24px;
+            font-weight: 400;
+            color: var(--text-primary);
+            line-height: 1.25;
+            margin-bottom: 12px;
+        }
+
+        .rule-text {
+            font-size: 19px;
+            line-height: 1.5;
+            color: var(--text-secondary);
+        }
+
+        /* References Slide (Slide 29) */
+        .references-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 36px;
+            border: 1px solid var(--line);
+            background: var(--white-overlay);
+            padding: 28px 32px;
+            height: calc(100% - 100px);
+            overflow: hidden;
+        }
+
+        .references-col {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .ref-entry {
+            font-size: 16px;
+            line-height: 1.5;
+            color: var(--text-secondary);
+            padding-left: 28px;
+            text-indent: -28px;
+            border-bottom: 1px solid rgba(184, 176, 164, 0.35);
+            padding-bottom: 10px;
+        }
+
+        .ref-entry em {
+            font-family: var(--font-display);
+            color: var(--text-primary);
+            font-style: italic;
+        }
+
+        /* Closing Slide (Slide 30) */
+        .closing-layout-box {
+            margin-top: 200px;
+            max-width: 1200px;
+        }
+
+        .closing-layout-box .slide-title {
+            font-size: 92px;
+            line-height: 1.1;
+            margin-bottom: 24px;
+        }
+
+        /* ==========================================================================
+           PRESENTATION CHROME & CONTROLS
+           ========================================================================== */
+        .deck-chrome {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .nav-arrows-wrap {
+            position: absolute;
+            bottom: 28px;
+            left: 36px;
+            display: flex;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        .btn-nav-arrow {
+            width: 44px;
+            height: 44px;
+            background: rgba(237, 232, 224, 0.9);
+            border: 1px solid var(--line);
+            color: var(--text-primary);
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .btn-nav-arrow:hover {
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            border-color: var(--text-primary);
+        }
+
+        .slide-counter-display {
+            position: absolute;
+            bottom: 32px;
+            right: 44px;
+            font-family: var(--font-body);
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--accent);
+            pointer-events: auto;
+        }
+
+        .nav-dots-column {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            pointer-events: auto;
+        }
+
+        .nav-dot-item {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--line);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-dot-item:hover {
+            background: var(--accent);
+            transform: scale(1.4);
+        }
+
+        .nav-dot-item.active {
+            background: var(--text-primary);
+            transform: scale(1.6);
+        }
+
+        .top-deck-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--line);
+            opacity: 0.4;
+        }
+
+        .top-deck-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--text-primary);
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="deck-viewport">
+        <main class="deck-stage" id="deckStage">
+
+            <!-- SLIDE 01 -->
+            <section class="slide active" id="slide-1" data-slide-index="0">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <div class="hero-title-grid-large">
+                        <div class="hero-title-left">
+                            <h1 class="slide-title">Data Visualization for Science</h1>
+                            <div class="horizontal-accent-rule"></div>
+                            <div class="hero-meta-list">
+                                <span class="hero-meta-item">26-11-2026</span>
+                                <span class="hero-meta-item">Gido Stoop</span>
+                            </div>
+                        </div>
+                        <div class="hero-title-right-large">
+                            <div class="media-frame">
+                                <img src="assets/slide_01_img_1.jpg" alt="Data Visualization for Science">
+                            </div>
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 02 -->
+            <section class="slide " id="slide-2" data-slide-index="1">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <h2 class="slide-title">Who am I?</h2>
+                    <div class="split-grid">
+                        <div class="split-text-col">
+                            <ul class="bullet-list">
+                                        <li class="level-0">Gido Stoop</li>
+                                <li class="level-0">Geographer / Geodata scientist</li>
+                                <li class="level-0">At the crossroads of geography and ICT</li>
+                                <li class="level-0">HU Centre of Expertise: Smart Sustainable Cities</li>
+                                <li class="level-0">All-round map nerd</li>
+
+                            </ul>
+                        </div>
+                        <div class="split-media-col">
+                            <div class="media-frame" style="max-height: 620px; padding: 14px;">
+                                <img src="assets/slide_02_img_1.png" alt="Gido Stoop">
+                            </div>
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 03 -->
+            <section class="slide " id="slide-3" data-slide-index="2">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <h2 class="slide-title">Data Visualization</h2>
+                    <div class="split-grid">
+                        <div class="split-text-col">
+                            <ul class="bullet-list">
+                                        <li class="level-0">The Visual Display of Quantitative Information</li>
+                                <li class="level-0">Translating numbers into Human Insight</li>
+                                <li class="level-0">Core Principles from Edward R. Tufte</li>
+                                <li class="level-1">The Visual Display of Quantitative Information</li>
+                                <li class="level-0">Examples from Reddit</li>
+                                <li class="level-1">r/dataisbeautiful and r/dataisugly</li>
+
+                            </ul>
+                        </div>
+                        <div class="split-media-col" style="display: flex; flex-direction: column; gap: 18px; justify-content: center; height: 100%;">
+                            <div class="media-frame" style="max-height: 330px;"><img src="assets/slide_03_img_1.png" alt="Data Visualization A" style="max-height: 310px;"></div>
+                            <div class="media-frame" style="max-height: 330px;"><img src="assets/slide_03_img_2.png" alt="Data Visualization B" style="max-height: 310px;"></div>
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 04 -->
+            <section class="slide " id="slide-4" data-slide-index="3">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+                        <h2 class="slide-title">Aesthetics Are Objective</h2>
+                    <ul class="bullet-list" style="margin-top: 24px; max-width: 1400px;">
+                        <li class="level-0">‘Everyone’s taste is different’ is nonsense</li>
+                        <li class="level-0">Aesthetics has objective elements</li>
+                        <li class="level-0">There are rules for ‘pretty’</li>
+                        <li class="level-0">Color, contrast, typography, presentation, style, alignment, distribution</li>
+                    </ul>
+
+                </div>
+            </section>
+    
+            <!-- SLIDE 05 -->
+            <section class="slide " id="slide-5" data-slide-index="4">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <div class="full-image-container">
+                        <div class="media-frame">
+                            <img src="assets/slide_05_img_1.png" alt="Full visual">
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 06 -->
+            <section class="slide " id="slide-6" data-slide-index="5">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <div class="full-image-container">
+                        <div class="media-frame">
+                            <img src="assets/slide_06_img_1.png" alt="Full visual">
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 07 -->
+            <section class="slide " id="slide-7" data-slide-index="6">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <div class="dual-media-grid full-height">
+                        <div class="dual-media-card"><img src="assets/slide_07_img_1_web.jpg" alt="Map A"></div>
+                        <div class="dual-media-card"><img src="assets/slide_07_img_2.png" alt="Map B"></div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 08 -->
+            <section class="slide " id="slide-8" data-slide-index="7">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <h2 class="slide-title">Not Just Aesthetic</h2>
+                    <div class="split-grid-dual-large">
+                        <div class="split-text-col">
+                            <ul class="bullet-list">
+                                        <li class="level-0">Plotting the data reveals patterns</li>
+                                <li class="level-0">Uncover unintended mistakes</li>
+                                <li class="level-0">Nearly impossible without plotting</li>
+                                <li class="level-0">So: Always plot the data before drawing conclusions</li>
+
+                            </ul>
+                        </div>
+                        <div class="dual-media-col-large">
+                            <div class="media-frame frame-top"><img src="assets/slide_08_img_1.png" alt="Not Just Aesthetic Scatterplots"></div>
+                            <div class="media-frame frame-bottom"><img src="assets/slide_08_img_2.png" alt="Not Just Aesthetic Table"></div>
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 09 -->
+            <section class="slide " id="slide-9" data-slide-index="8">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <h2 class="slide-title">Graphical Excellence</h2>
+                    <div class="split-grid-large-img">
+                        <div class="split-text-col">
+                            <ul class="bullet-list">
+                                        <li class="level-0">Term is coined by Tufte</li>
+                                <li class="level-0">Clarity, Precision and Efficiency with Minimal Overhead</li>
+                                <li class="level-0">Thinking about the data itself instead of deciphering the graphic design or technique</li>
+
+                            </ul>
+                        </div>
+                        <div class="split-media-col">
+                            <div class="media-frame">
+                                <img src="assets/slide_09_img_1.jpg" alt="Graphical Excellence">
+                            </div>
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 10 -->
+            <section class="slide " id="slide-10" data-slide-index="9">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <h2 class="slide-title">More Than Just Scatterplots</h2>
+                    <div class="split-grid">
+                        <div class="split-text-col">
+                            <ul class="bullet-list">
+                                        <li class="level-0">London 1854</li>
+                                <li class="level-0">‘Bad air’ would be source</li>
+                                <li class="level-0">John Snow thought tap-water</li>
+                                <li class="level-0">Waterpump in Soho</li>
+                                <li class="level-0">‘First’ famous spatial analysis</li>
+
+                            </ul>
+                        </div>
+                        <div class="split-media-col">
+                            <div class="media-frame" style="max-height: 660px; padding: 12px; width: 100%;">
+                                <img src="assets/slide_10_img_1.png" alt="More Than Just Scatterplots">
+                            </div>
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 11 -->
+            <section class="slide " id="slide-11" data-slide-index="10">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+                        <h2 class="slide-title">10/10 Data Visualization</h2>
+                    <ul class="bullet-list" style="margin-bottom: 16px;">
+                        <li class="level-0">Minard (1869) Napoleon's Russian Campaign</li>
+                    </ul>
+
+                    <div class="wide-media-container">
+                        <div class="media-frame">
+                            <img src="assets/slide_11_img_1.png" alt="10/10 Data Visualization">
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 12 -->
+            <section class="slide " id="slide-12" data-slide-index="11">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <div class="dual-images-top-text-wrap">
+                        <h2 class="slide-title">Visuals Can Deceive</h2>
+                        <div class="top-bullets-summary">
+                            <ul class="bullet-list">
+                                        <li class="level-0">Choose visualization based on your story</li>
+                                <li class="level-0">What’s wrong with the graph above?</li>
+
+                            </ul>
+                        </div>
+                        <div class="dual-media-grid-huge">
+                            <div class="media-frame"><img src="assets/slide_12_img_1.png" alt="Visuals Can Deceive Left"></div>
+                            <div class="media-frame"><img src="assets/slide_12_img_2.jpg" alt="Visuals Can Deceive Right"></div>
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 13 -->
+            <section class="slide " id="slide-13" data-slide-index="12">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+                        <h2 class="slide-title">Framing Data to Suit Your Narrative</h2>
+
+                    <div class="dual-media-grid">
+                        <div class="dual-media-card"><img src="assets/slide_13_img_1.png" alt="Framing Data to Suit Your Narrative A"></div>
+                        <div class="dual-media-card"><img src="assets/slide_13_img_2.jpg" alt="Framing Data to Suit Your Narrative B"></div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 14 -->
+            <section class="slide " id="slide-14" data-slide-index="13">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <div class="hero-chart-layout-wrap">
+                        <h2 class="slide-title">Interpreting Data Wrong (On Purpose?)</h2>
+                        <div class="hero-chart-quote">BBB: “The PBL states that 80% of the nitrogen-sensitive nature areas in the Netherlands are in good condition or are improving (Figure 1)”</div>
+                        <div class="hero-chart-container">
+                            <div class="media-frame">
+                                <img src="assets/slide_14_img_1.jpg" alt="Interpreting Data Wrong (On Purpose?)">
+                            </div>
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 15 -->
+            <section class="slide " id="slide-15" data-slide-index="14">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <h2 class="slide-title">The Dimension Trap</h2>
+                    <div class="split-grid-side-by-side">
+                        <div class="split-text-col">
+                            <ul class="bullet-list">
+                                        <li class="level-0">Using 2-dimensions to represent 1-dimensional change</li>
+                                <li class="level-0">Or even using 3-dimensions…</li>
+                                <li class="level-1">Lie factor: 59.4</li>
+                                <li class="level-0">These types of visualization should be avoided!</li>
+
+                            </ul>
+                        </div>
+                        <div class="side-by-side-cards-wrap">
+                            <div class="media-frame"><img src="assets/slide_15_img_1.png" alt="The Dimension Trap 1"></div>
+                            <div class="media-frame"><img src="assets/slide_15_img_2.png" alt="The Dimension Trap 2"></div>
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 16 -->
+            <section class="slide " id="slide-16" data-slide-index="15">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <h2 class="slide-title">6 Rules of Graphical Integrity</h2>
+                    <div class="six-boxes-grid">
+        
+                        <div class="rule-box">
+                            <div class="rule-numeral">01</div>
+                            <div class="rule-heading">Exact Proportionality</div>
+                            <div class="rule-text">Visual surface must directly mirror data values</div>
+                        </div>
+            
+                        <div class="rule-box">
+                            <div class="rule-numeral">02</div>
+                            <div class="rule-heading">Thorough Labeling</div>
+                            <div class="rule-text">Explicit notes defeat ambiguity and misinterpretation</div>
+                        </div>
+            
+                        <div class="rule-box">
+                            <div class="rule-numeral">03</div>
+                            <div class="rule-heading">Data Variation First</div>
+                            <div class="rule-text">Highlight shifts in data, not shifts in design</div>
+                        </div>
+            
+                        <div class="rule-box">
+                            <div class="rule-numeral">04</div>
+                            <div class="rule-heading">Standardized Units</div>
+                            <div class="rule-text">Use deflated currency and per-capita adjustments</div>
+                        </div>
+            
+                        <div class="rule-box">
+                            <div class="rule-numeral">05</div>
+                            <div class="rule-heading">Dimensional Parity</div>
+                            <div class="rule-text">Keep visual dimensions equal to data dimensions</div>
+                        </div>
+            
+                        <div class="rule-box">
+                            <div class="rule-numeral">06</div>
+                            <div class="rule-heading">Contextual Completeness</div>
+                            <div class="rule-text">Always show full ranges and comparisons</div>
+                        </div>
+            
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 17 -->
+            <section class="slide " id="slide-17" data-slide-index="16">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <h2 class="slide-title">The ‘Duck’ Data Visualization</h2>
+                    <div class="split-grid">
+                        <div class="split-text-col">
+                            <ul class="bullet-list">
+                                        <li class="level-0">When a graph is more design than data, it may be called ‘duck’. Referring to the ‘Big Duck’ building.</li>
+                                <li class="level-0">“It is all right to decorate construction, but never construct decoration”</li>
+                                <li class="level-1">Robert Venturi, Architect</li>
+
+                            </ul>
+                        </div>
+                        <div class="split-media-col">
+                            <div class="media-frame" style="max-height: 660px; padding: 12px; width: 100%;">
+                                <img src="assets/slide_17_img_1.jpg" alt="The ‘Duck’ Data Visualization">
+                            </div>
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 18 -->
+            <section class="slide " id="slide-18" data-slide-index="17">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <h2 class="slide-title">Data-Ink Ratio</h2>
+                    <div class="split-grid-dataink-large">
+                        <div class="split-text-col">
+                            <ul class="bullet-list">
+                                        <li class="level-0">Data Ink: Lines, bars, dots, anything showing direct data</li>
+                                <li class="level-0">Total Ink: Gridlines, borders, shadows, background fills etc.</li>
+
+                            </ul>
+                            <div class="spaced-divider"></div>
+                            <ul class="bullet-list">
+                                        <li class="level-0">High Data-Ink ratio (0.9 – 1.0): Reports, financial charts</li>
+                                <li class="level-0">Moderate Data-Ink Ratio (0.5 – 0.89): Storytelling, presentation</li>
+                                <li class="level-0">Low Data-Ink Ratio (Below 0.5): Marketing, ads, promotion</li>
+
+                            </ul>
+                        </div>
+                        <div class="dataink-media-col">
+                            <div class="media-frame"><img src="assets/slide_18_img_1.png" alt="Data-Ink Ratio A"></div>
+                            <div class="media-frame"><img src="assets/slide_18_img_2.png" alt="Data-Ink Ratio B"></div>
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 19 -->
+            <section class="slide " id="slide-19" data-slide-index="18">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <div class="legend-swapped-wrap">
+                        <h2 class="slide-title">The Best Legend is No Legend</h2>
+                        <div class="horizontal-pills-strip">
+                                    <div class="horizontal-pill-item">Less eye movement</div>
+                            <div class="horizontal-pill-item">Better accessibility</div>
+                            <div class="horizontal-pill-item">Cleaner layout</div>
+
+                        </div>
+                        <div class="dual-media-grid-huge">
+                            <div class="media-frame"><img src="assets/slide_19_img_2.png" alt="The Best Legend is No Legend Direct Labeling"></div>
+                            <div class="media-frame"><img src="assets/slide_19_img_1.png" alt="The Best Legend is No Legend Detached Legend"></div>
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 20 -->
+            <section class="slide " id="slide-20" data-slide-index="19">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <h2 class="slide-title">Nobody Starts Reading at the Title</h2>
+                    <div class="split-grid">
+                        <div class="split-text-col">
+                            <ul class="bullet-list">
+                                        <li class="level-0">Size</li>
+                                <li class="level-0">Contrast</li>
+                                <li class="level-0">Spacing</li>
+
+                            </ul>
+                        </div>
+                        <div class="split-media-col">
+                            <div class="media-frame" style="max-height: 660px; padding: 12px; width: 100%;">
+                                <img src="assets/slide_20_img_1.png" alt="Nobody Starts Reading at the Title">
+                            </div>
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 21 -->
+            <section class="slide " id="slide-21" data-slide-index="20">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+                        <h2 class="slide-title">Gazeplot – Where Do People Look?</h2>
+
+                    <div class="wide-media-container">
+                        <div class="media-frame">
+                            <img src="assets/slide_21_img_1.jpg" alt="Gazeplot – Where Do People Look?">
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 22 -->
+            <section class="slide " id="slide-22" data-slide-index="21">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <div class="dual-images-top-text-wrap">
+                        <h2 class="slide-title">Friendly vs. Unfriendly Visuals</h2>
+                        <div class="top-bullets-summary">
+                            <ul class="bullet-list">
+                                        <li class="level-0">Vertical rotated labels, cryptic codes, detached legends</li>
+                                <li class="level-0">Friendly: Horizontal text, clear annotation, direct in-place callouts, color coded</li>
+
+                            </ul>
+                        </div>
+                        <div class="dual-media-grid-huge">
+                            <div class="media-frame"><img src="assets/slide_22_img_1.png" alt="Friendly vs. Unfriendly Visuals Left"></div>
+                            <div class="media-frame"><img src="assets/slide_22_img_2.png" alt="Friendly vs. Unfriendly Visuals Right"></div>
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 23 -->
+            <section class="slide " id="slide-23" data-slide-index="22">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+                        <h2 class="slide-title">Sentences, Tables or Graphics?</h2>
+                    <ul class="bullet-list" style="margin-top: 24px; max-width: 1400px;">
+                        <li class="level-0">Sentences: Best for 1 or 2 numbers embedded in narrative</li>
+                        <li class="level-0">Tables: Best for exact values, if lookups are important and small datasets (<20 numbers)</li>
+                        <li class="level-0">Graphics: Best for large datasets, complex structures</li>
+                        <li class="level-0">Tip: Graphic in body of report, table in appendix</li>
+                    </ul>
+
+                </div>
+            </section>
+    
+            <!-- SLIDE 24 -->
+            <section class="slide " id="slide-24" data-slide-index="23">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+                        <h2 class="slide-title">Medium Shift: Interactive Internet</h2>
+                    <ul class="bullet-list" style="margin-top: 24px; max-width: 1400px;">
+                        <li class="level-0">Details on demand</li>
+                        <li class="level-0">Exploratory Dashboards</li>
+                        <li class="level-1">PowerBI</li>
+                        <li class="level-1">Tableau</li>
+                        <li class="level-0">Explanatory Storytelling</li>
+                        <li class="level-1">Scrollymap</li>
+                        <li class="level-1">Storymap</li>
+                        <li class="level-1">Slide decks</li>
+                        <li class="level-0">Interactive data visualization can look flashy, even if design is poor</li>
+                    </ul>
+
+                </div>
+            </section>
+    
+            <!-- SLIDE 25 -->
+            <section class="slide " id="slide-25" data-slide-index="24">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+                        <h2 class="slide-title">Minimalist vs. Memorable</h2>
+
+                    <div class="dual-media-grid">
+                        <div class="dual-media-card"><img src="assets/slide_25_img_2.png" alt="Minimalist vs. Memorable A"></div>
+                        <div class="dual-media-card"><img src="assets/slide_25_img_1.jpg" alt="Minimalist vs. Memorable B"></div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 26 -->
+            <section class="slide " id="slide-26" data-slide-index="25">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <h2 class="slide-title">Age of AI</h2>
+                    <div class="split-grid-large-img">
+                        <div class="split-text-col">
+                            <ul class="bullet-list">
+                                        <li class="level-0">Makes tools like Plotly, Matplotlib and ggplot2 more accessible.</li>
+                                <li class="level-1">Knowing plt.plot() is no longer enough to outcompete others</li>
+                                <li class="level-0">Data ordering and cleaning made easier</li>
+                                <li class="level-1">Structuring</li>
+                                <li class="level-1">Anomaly detection</li>
+                                <li class="level-1">Outlier flagging</li>
+
+                            </ul>
+                        </div>
+                        <div class="split-media-col">
+                            <div class="media-frame">
+                                <img src="assets/slide_26_img_1.png" alt="Age of AI">
+                            </div>
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 27 -->
+            <section class="slide " id="slide-27" data-slide-index="26">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <h2 class="slide-title">Don’t Let AI Generate the Graphics Directly!</h2>
+                    <div class="split-grid">
+                        <div class="split-text-col">
+                            <ul class="bullet-list">
+                                        <li class="level-1">Fabricated numbers</li>
+                                <li class="level-1">Chartjunk</li>
+                                <li class="level-1">Overlapping labels</li>
+                                <li class="level-1">Rather, let AI generate the code. Prompt with concepts we discussed like</li>
+                                <li class="level-2">Data-ink ratio,</li>
+                                <li class="level-2">Zero baseline,</li>
+                                <li class="level-2">Lie factor</li>
+                                <li class="level-2">Direct labeling</li>
+                                <li class="level-1">And be skeptical</li>
+
+                            </ul>
+                        </div>
+                        <div class="split-media-col">
+                            <div class="media-frame" style="max-height: 660px; padding: 12px; width: 100%;">
+                                <img src="assets/slide_27_img_1.png" alt="Don’t Let AI Generate the Graphics Directly!">
+                            </div>
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 28 -->
+            <section class="slide " id="slide-28" data-slide-index="27">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+                        <h2 class="slide-title">Check Your Visualization with the Data Visualization Checklist</h2>
+
+                    <div class="wide-media-container">
+                        <div class="media-frame">
+                            <img src="assets/slide_28_img_1.png" alt="Check Your Visualization with the Data Visualization Checklist">
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 29 -->
+            <section class="slide " id="slide-29" data-slide-index="28">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <h2 class="slide-title">References</h2>
+                    <div class="references-grid">
+                        <div class="references-col">
+                                    <div class="ref-entry">Anscombe, F. J. (1973). Graphs in statistical analysis. <em>The American Statistician</em>, 27(1), 17–21. https://doi.org/10.1080/00031305.1973.10478966</div>
+                            <div class="ref-entry">BoerBurgerBeweging. (2023, June 1). Stikstofwaanzin bereikt dieptepunt: BBB wil spoeddebat. <em>BBB Fractienieuws</em>. https://boerburgerbeweging.nl/fractienieuws/</div>
+                            <div class="ref-entry">Cairo, A. (2012). <em>The functional art: An introduction to information graphics and visualization</em>. New Riders.</div>
+                            <div class="ref-entry">Environmental Systems Research Institute. (2016). <em>Classifying numerical fields for graduated symbology</em> (ArcGIS for Desktop Help 10.3). https://desktop.arcgis.com/</div>
+                            <div class="ref-entry">Evergreen, S. (2021). <em>Proper placement of chart legends</em>. Evergreen Data. https://stephanieevergreen.com/proper-placement-of-chart-legends/</div>
+                            <div class="ref-entry">Evergreen, S., & Emery, A. K. (2016). <em>Data visualization checklist</em> (May 2016 ed.). Evergreen Data & Depict Data Studio. https://stephanieevergreen.com/</div>
+                            <div class="ref-entry">Minard, C. J. (1869). <em>Carte figurative des pertes successives en hommés de l'Armée Française dans la campagne de Russie 1812–1813</em> [Map]. Regnier et Dourdet.</div>
+                            <div class="ref-entry">National Geographic. (2015, October 16). <em>Data points: An interview with Alberto Cairo</em>. National Geographic Adventure. https://www.nationalgeographic.com/</div>
+                            <div class="ref-entry">r/dataisugly community. (2020–2024). <em>Discussion threads, bad charts, and visual critiques</em> [Online forum posts]. Reddit. https://www.reddit.com/r/dataisugly/</div>
+
+                        </div>
+                        <div class="references-col">
+                                    <div class="ref-entry">Snow, J. (1855). <em>On the mode of communication of cholera</em> (2nd ed.). John Churchill.</div>
+                            <div class="ref-entry">Stoop, G. (2026). <em>Spatial data visualization and cartographic design</em> [Lecture materials]. Hogeschool Utrecht.</div>
+                            <div class="ref-entry">Teller, I. (2024). <em>Data visualization done right</em> [Post]. LinkedIn. https://www.linkedin.com/posts/ingateller/</div>
+                            <div class="ref-entry">Tufte, E. R. (2001). <em>The visual display of quantitative information</em> (2nd ed.). Graphics Press.</div>
+                            <div class="ref-entry">User Vision. (2020). <em>The UX toolbox: Eye tracking</em>. User Vision Thoughts. https://uservision.co.uk/thoughts/the-ux-toolbox-eyetracking</div>
+                            <div class="ref-entry">Vani, V. (2022, November 11). <em>Data-ink ratio</em>. Medium. https://medium.com/@vaniv7397/data-ink-ratio-fcad209ef425</div>
+                            <div class="ref-entry">Venturi, R., Scott Brown, D., & Izenour, S. (1977). <em>Learning from Las Vegas: The forgotten symbolism of architectural form</em> (Rev. ed.). MIT Press.</div>
+                            <div class="ref-entry">Volkspartij voor Vrijheid en Democratie. (2020, February 11). <em>De koopkracht stijgt voor iedereen</em> [Post]. X. https://x.com/VVD/status/1227248075061841920</div>
+                            <div class="ref-entry">Wikipedia contributors. (2023). <em>Big Duck</em>. Wikipedia, The Free Encyclopedia. https://en.wikipedia.org/wiki/Big_Duck</div>
+
+                        </div>
+                    </div>
+        
+                </div>
+            </section>
+    
+            <!-- SLIDE 30 -->
+            <section class="slide " id="slide-30" data-slide-index="29">
+                <div class="geo-layer">
+                    <div class="geo-circle-corner"></div>
+                    <div class="vertical-drafting-line"></div>
+                </div>
+                
+                <div class="slide-content">
+    
+                    <div class="closing-layout-box">
+                        <h1 class="slide-title">Thank you for listening</h1>
+                        <div class="horizontal-accent-rule"></div>
+                        <ul class="bullet-list" style="margin-top: 36px;">
+                                    <li class="level-0">Gido Stoop</li>
+                            <li class="level-0">gido.stoop@hu.nl</li>
+
+                        </ul>
+                    </div>
+        
+                </div>
+            </section>
+    
+        </main>
+    </div>
+
+    <!-- Presentation Chrome & Controls -->
+    <div class="deck-chrome">
+        <!-- Top Progress Bar -->
+        <div class="top-deck-progress">
+            <div class="top-deck-progress-bar" id="topProgressBar"></div>
+        </div>
+
+        <!-- Bottom-Left Navigation Arrows & Fullscreen Toggle -->
+        <div class="nav-arrows-wrap">
+            <button class="btn-nav-arrow" id="btnPrev" title="Previous Slide (←, PageUp, or Wheel Up)">&#8592;</button>
+            <button class="btn-nav-arrow" id="btnNext" title="Next Slide (→, Space, PageDown, or Wheel Down)">&#8594;</button>
+            <button class="btn-nav-arrow" id="btnFullscreen" title="Toggle Fullscreen (F)">⛶</button>
+        </div>
+
+        <!-- Bottom-Right Slide Counter -->
+        <div class="slide-counter-display" id="slideCounterDisplay">
+            SLIDE 01 / 30
+        </div>
+
+        <!-- Right-Edge Vertical Dots Navigation -->
+        <div class="nav-dots-column" id="navDotsColumn">
+            <div class="nav-dot-item active" data-target="0"></div><div class="nav-dot-item " data-target="1"></div><div class="nav-dot-item " data-target="2"></div><div class="nav-dot-item " data-target="3"></div><div class="nav-dot-item " data-target="4"></div><div class="nav-dot-item " data-target="5"></div><div class="nav-dot-item " data-target="6"></div><div class="nav-dot-item " data-target="7"></div><div class="nav-dot-item " data-target="8"></div><div class="nav-dot-item " data-target="9"></div><div class="nav-dot-item " data-target="10"></div><div class="nav-dot-item " data-target="11"></div><div class="nav-dot-item " data-target="12"></div><div class="nav-dot-item " data-target="13"></div><div class="nav-dot-item " data-target="14"></div><div class="nav-dot-item " data-target="15"></div><div class="nav-dot-item " data-target="16"></div><div class="nav-dot-item " data-target="17"></div><div class="nav-dot-item " data-target="18"></div><div class="nav-dot-item " data-target="19"></div><div class="nav-dot-item " data-target="20"></div><div class="nav-dot-item " data-target="21"></div><div class="nav-dot-item " data-target="22"></div><div class="nav-dot-item " data-target="23"></div><div class="nav-dot-item " data-target="24"></div><div class="nav-dot-item " data-target="25"></div><div class="nav-dot-item " data-target="26"></div><div class="nav-dot-item " data-target="27"></div><div class="nav-dot-item " data-target="28"></div><div class="nav-dot-item " data-target="29"></div>
+        </div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           CARTESIAN SLIDE PRESENTATION CONTROLLER
+           16:9 Fixed-Stage Scaler, Keyboard/Touch Navigation & Chrome Controller
+           Optimized for seamless operation across both laptop and desktop screens.
+           ========================================================================== */
+        class CartesianPresentation {
+            constructor() {
+                this.slides = document.querySelectorAll('.slide');
+                this.totalSlides = this.slides.length;
+                this.currentIndex = 0;
+                this.stage = document.getElementById('deckStage');
+                this.counter = document.getElementById('slideCounterDisplay');
+                this.progressBar = document.getElementById('topProgressBar');
+                this.dots = document.querySelectorAll('.nav-dot-item');
+                
+                this.initStageScale();
+                this.initControls();
+                this.showSlide(0);
+            }
+
+            initStageScale() {
+                const updateScale = () => {
+                    // Calculate exact viewport dimensions
+                    const vw = window.innerWidth;
+                    const vh = window.innerHeight;
+                    // Uniform scale factor ensuring 1920x1080 stage fits entirely within viewport
+                    const factor = Math.min(vw / 1920, vh / 1080);
+                    // Center and scale stage smoothly around its center
+                    this.stage.style.transform = `translate(-50%, -50%) scale(${factor})`;
+                };
+                
+                updateScale();
+                window.addEventListener('resize', updateScale);
+                window.addEventListener('fullscreenchange', updateScale);
+                window.addEventListener('webkitfullscreenchange', updateScale);
+                window.addEventListener('mozfullscreenchange', updateScale);
+                window.addEventListener('orientationchange', updateScale);
+                window.addEventListener('load', updateScale);
+            }
+
+            initControls() {
+                // Navigation Buttons
+                document.getElementById('btnPrev').addEventListener('click', () => this.navigate(-1));
+                document.getElementById('btnNext').addEventListener('click', () => this.navigate(1));
+
+                // Fullscreen Toggle Button
+                const btnFs = document.getElementById('btnFullscreen');
+                if (btnFs) {
+                    btnFs.addEventListener('click', () => {
+                        if (!document.fullscreenElement) {
+                            document.documentElement.requestFullscreen().catch(() => {});
+                        } else {
+                            document.exitFullscreen().catch(() => {});
+                        }
+                    });
+                }
+
+                // Vertical Dots
+                this.dots.forEach((dot, idx) => {
+                    dot.addEventListener('click', () => this.showSlide(idx));
+                });
+
+                // Keyboard Navigation (Arrows, Space, PageUp/Down, Enter, N, P, F)
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ' || e.key === 'Enter' || e.key === 'n' || e.key === 'N') {
+                        e.preventDefault();
+                        this.navigate(1);
+                    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp' || e.key === 'Backspace' || e.key === 'p' || e.key === 'P') {
+                        e.preventDefault();
+                        this.navigate(-1);
+                    } else if (e.key === 'Home') {
+                        e.preventDefault();
+                        this.showSlide(0);
+                    } else if (e.key === 'End') {
+                        e.preventDefault();
+                        this.showSlide(this.totalSlides - 1);
+                    } else if (e.key === 'f' || e.key === 'F') {
+                        if (!document.fullscreenElement) {
+                            document.documentElement.requestFullscreen().catch(() => {});
+                        } else {
+                            document.exitFullscreen().catch(() => {});
+                        }
+                    }
+                });
+
+                // Trackpad & Mouse Wheel Scrolling (Smooth slide transition on laptop touchpad)
+                let wheelCooldown = false;
+                window.addEventListener('wheel', (e) => {
+                    if (wheelCooldown) return;
+                    const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+                    if (Math.abs(delta) > 20) {
+                        if (delta > 0) {
+                            this.navigate(1);
+                        } else {
+                            this.navigate(-1);
+                        }
+                        wheelCooldown = true;
+                        setTimeout(() => { wheelCooldown = false; }, 350);
+                    }
+                }, { passive: true });
+
+                // Touch / Swipe Navigation for touchscreens (Surface, laptops, tablets)
+                let touchStartX = 0;
+                document.addEventListener('touchstart', (e) => {
+                    touchStartX = e.touches[0].clientX;
+                }, { passive: true });
+                document.addEventListener('touchend', (e) => {
+                    const touchEndX = e.changedTouches[0].clientX;
+                    const diff = touchEndX - touchStartX;
+                    if (Math.abs(diff) > 50) {
+                        if (diff < 0) this.navigate(1);
+                        else this.navigate(-1);
+                    }
+                }, { passive: true });
+            }
+
+            navigate(direction) {
+                this.showSlide(this.currentIndex + direction);
+            }
+
+            showSlide(index) {
+                this.currentIndex = Math.max(0, Math.min(index, this.totalSlides - 1));
+                
+                this.slides.forEach((slide, idx) => {
+                    slide.classList.toggle('active', idx === this.currentIndex);
+                });
+
+                this.dots.forEach((dot, idx) => {
+                    dot.classList.toggle('active', idx === this.currentIndex);
+                });
+
+                // Update Counter
+                const curStr = String(this.currentIndex + 1).padStart(2, '0');
+                const totStr = String(this.totalSlides).padStart(2, '0');
+                this.counter.textContent = `SLIDE ${curStr} / ${totStr}`;
+
+                // Update Progress Bar
+                const pct = ((this.currentIndex + 1) / this.totalSlides) * 100;
+                this.progressBar.style.width = `${pct}%`;
+            }
+        }
+
+        // Initialize on DOM load
+        document.addEventListener('DOMContentLoaded', () => {
+            window.presentation = new CartesianPresentation();
+        });
+    </script>
+</body>
+</html>
